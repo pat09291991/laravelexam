@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 class UserTest extends TestCase
 {
-    // use WithoutMiddleware;
+    use WithoutMiddleware;
 
     /**
      * A basic feature test example.
@@ -18,12 +18,8 @@ class UserTest extends TestCase
      */
     public function testIndex()
     {
-        $query = '?q=john&page=1&sizePerPage=10&sortField=id&sortOrder=desc&roles=';
-        $headers = [
-            "Authorization" => "Bearer 1|DxPTbhRMOMAAHwke33TeIblSBpzpNlzquzgB6GQT",
-        ];
-
-        $response = $this->get('api/v1/users' . $query, $headers);
+        $query = '?q=&page=1&sizePerPage=10&sortField=id&sortOrder=desc&roles=';
+        $response = $this->get('api/v1/users' . $query);
         $response->dump();
 
         $response->assertStatus(200);
