@@ -30,7 +30,7 @@ class AuthController extends Controller
                 throw new Error("Invalid email address or password");
             }
 
-            if (Hash::check($request->password, $user->password)) {
+            if (!Hash::check($request->password, $user->password)) {
                 throw new Error("Invalid email address or password");
             }
 

@@ -104,7 +104,7 @@ class UserController extends Controller
                 'email_address' => $params['email_address'],
             ];
 
-            if ($params['password'] && Hash::check($params['password'], $user->password)) {
+            if ($params['password'] && !Hash::check($params['password'], $user->password)) {
                 $updateParams['password'] = Hash::make($params['password']);
             }
 

@@ -20,12 +20,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::group(['prefix' => 'v1'], function () {
     Route::post('auth', [AuthController::class, 'auth']);
-    
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('logout', [AuthController::class, 'logout']);
 
-        Route::apiResource('users', UserController::class);
-        Route::apiResource('roles', RoleController::class);
+        Route::middleware('admin')->group(function () {
+            Route::apiResource('users', UserController::class);
+            Route::apiResource('roles', RoleController::class);
+        });
         Route::get('filters', [Controller::class, 'filters']);
     });
 });

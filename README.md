@@ -5,7 +5,9 @@
 4. set up database
 5. update env DB_DATABASE=laravelexam
 6. run php artisan migrate
-7. run php artisan serve to port 8000
+7. run roles seeder "php artisan db:seed --class=RolesSeeder"
+8. run admin seeder "php artisan db:seed --class=AdminUserSeeder"
+9. run php artisan serve to port 8000
 
 
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
