@@ -3,67 +3,78 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\UserResource;
 use App\Models\Role;
 use App\Models\User;
-use Error;
+use App\Traits\UserTraits;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Throwable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
+    use UserTraits;
+
+    public function index(Request $request)
     {
-        //
+        $sortField = $request->query('sortField', 'id');
+        $sortOrder = $request->query('sortOrder', 'desc');
+        $sizePerPage = $request->query('sizePerPage', 10);
+        $rolesFilter = explode(",", $request->query('roles'));
+        $search = $request->query('q', '');
+        $roles = Role::all();
+
+        $users = User::where(function (Builder $query) use ($rolesFilter, $search) {
+            $query->whereHas('roles', function ($q) use ($rolesFilter) {
+                $q->whereIn('role_id', $rolesFilter);
+            });
+
+            if (!empty($search) && !empty($rolesFilter[0])) {
+                $query->where('full_name', 'like', "%{$search}%")
+                    ->orWhere('email_address', 'like', "%{$search}%");
+            }
+        })->orderBy($sortField, $sortOrder)
+            ->paginate($sizePerPage);
+
+        $users->getCollection()->transform(function ($user) use ($roles) {
+            $transformedUser = $user;
+            $userRoles = $user->roles->pluck('role_id');
+            $roles = json_encode($roles->whereIn('id', $userRoles)->pluck('name'));
+            unset($user->roles);
+            unset($user->password);
+
+            $transformedUser->roles = $roles;
+
+            return $transformedUser;
+        });
+
+        return response()->json($users);
     }
 
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
         try {
             $params = $request->all();
-            $validator = Validator::make($params, [
-                'full_name' => 'required',
-                'email' => 'required|string|email|max:255|unique:users',
-                'roles' => 'required'
-            ]);
-
-            if ($validator->fails()) {
-                throw new Error($validator->errors()->first());
-            }
-
+            $this->validateRequest($params);
             $this->validateRoles($params['roles']);
 
-            $roles = $params['roles'];
-            unset($params['roles']);
+            $storeParams = [
+                'full_name' => $params['full_name'],
+                'email_address' => $params['email_address'],
+                'password' => Hash::make($params['password']),
+            ];
 
-            $user = User::create($params);
-            $this->createUserRoles($roles, $user);
+            $user = User::create($storeParams);
+            $this->createUserRoles($params['roles'], $user);
 
-            return response()->json('Successfully create new user');
+            return response()->json('Successfully create a new user');
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 400);
         }
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function show(User $user)
     {
         $roles = Role::all();
@@ -81,62 +92,29 @@ class UserController extends Controller
         return $user;
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request, User $user)
     {
         try {
             $params = $request->all();
-            $validator = Validator::make($params, [
-                'full_name' => 'required|string|max:255',
-                'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-                'roles' => 'required'
-            ]);
-
-            if ($validator->fails()) {
-                throw new Error($validator->errors()->first());
-            }
-
+            $this->validateRequest($params, $user);
             $this->validateRoles($params['roles']);
 
-            $roles = $params['roles'];
-            unset($params['roles']);
+            $updateParams = [
+                'full_name' => $params['full_name'],
+                'email_address' => $params['email_address'],
+            ];
 
-            $user->update($params);
+            if ($params['password'] && Hash::check($params['password'], $user->password)) {
+                $updateParams['password'] = Hash::make($params['password']);
+            }
+
+            $user->update($updateParams);
             $user->roles()->delete();
-            $this->createUserRoles($roles, $user);
+            $this->createUserRoles($params['roles'], $user);
 
-            return response()->json('Successfully create new user');
+            return response()->json('Successfully update the user');
         } catch (Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 400);
         }
-    }
-
-    private function validateRoles($requestRoles)
-    {
-        $roles = Role::whereIn('id', $requestRoles)->count();
-
-        if (count($requestRoles) != $roles) {
-            throw new Error('Invalid roles');
-        }
-    }
-
-    private function createUserRoles($roles, $user)
-    {
-        $userRoles = [];
-        foreach ($roles as $role) {
-            $userRoles[] = [
-                'user_id' => $user->id,
-                'role_id' => $role,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }
-        DB::table('user_roles')->insert($userRoles);
     }
 }

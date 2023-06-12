@@ -9,9 +9,14 @@ class Role extends Model
 {
     use HasFactory;
 
-    protected $table = 'roles';
     protected $fillable = [
         'name',
     ];
+
+    protected function serializeDate(\DateTimeInterface $date)
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
+
 
 }
