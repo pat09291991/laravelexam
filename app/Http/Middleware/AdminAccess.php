@@ -18,7 +18,7 @@ class AdminAccess
     {
         $user = $request->user();
         $adminRole = $user->roles->map(function ($userRole) {
-            if ($userRole->role->name == "Administrator1") {
+            if ($userRole->role->name == "Administrator") {
                 return true;
             }
         });
